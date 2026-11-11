@@ -42,12 +42,15 @@ describe('gpt5ReasoningSettingsRequired', () => {
   });
 });
 describe('GPT-5-and-newer settings family', () => {
-  test.each(['gpt-5', 'gpt-5.1', 'gpt-6-astra'])(
-    'recognizes %s independently of effort defaults',
-    (model) => {
-      expect(isGpt5OrNewerReasoningModel(model)).toBe(true);
-    },
-  );
+  test.each([
+    'gpt-5',
+    'gpt-5.1',
+    'gpt-6-astra',
+    'openai/gpt-5.4',
+    'gateway/openai/gpt-6-astra',
+  ])('recognizes %s independently of effort defaults', (model) => {
+    expect(isGpt5OrNewerReasoningModel(model)).toBe(true);
+  });
 
   test.each([
     'gpt-4.1',
@@ -56,6 +59,8 @@ describe('GPT-5-and-newer settings family', () => {
     'gpt-5.1-chat-latest',
     'gpt-5.2-chat-latest',
     'gpt-5.3-chat-latest',
+    'openai/gpt-4.1',
+    'openai/gpt-5-chat-latest',
   ])('keeps %s outside the settings family', (model) => {
     expect(isGpt5OrNewerReasoningModel(model)).toBe(false);
   });
@@ -130,6 +135,24 @@ describe('getDefaultModelSettings', () => {
     expect(new Agent({ name: 'Default Astra' }).modelSettings).toEqual(
       expected,
     );
+  });
+
+  test('applies the same defaults to provider-prefixed model names', () => {
+    expect(getDefaultModelSettings('openai/gpt-5.4')).toEqual(
+      getDefaultModelSettings('gpt-5.4'),
+    );
+    expect(getDefaultModelSettings('openai/gpt-5.4')).toEqual({
+      reasoning: { effort: 'none' },
+      text: { verbosity: 'low' },
+    });
+    mockedLoadEnv.mockReturnValue({
+      [OPENAI_DEFAULT_MODEL_ENV_VARIABLE_NAME]: 'openai/gpt-6-astra',
+    });
+    expect(isGpt5OrNewerDefault()).toBe(true);
+    expect(getDefaultModelSettings()).toEqual({
+      reasoning: { effort: 'low' },
+      text: { verbosity: 'low' },
+    });
   });
 
   test.each(['gpt-5-mini'])(

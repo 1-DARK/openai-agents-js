@@ -9289,9 +9289,56 @@ describe('Runner.run', () => {
       expect(requestSettings.text?.verbosity).toBe('medium');
     });
 
+    it('preserves explicit settings for a provider-prefixed GPT-5 model name', async () => {
+      const inspectableModel = new InspectableModel({
+        output: [fakeModelMessage('Hello prefixed GPT-5')],
+        usage: new Usage(),
+      });
+      const runner = new Runner({
+        modelProvider: new InspectableModelProvider(inspectableModel),
+      });
+      const agent = new Agent({
+        name: 'PrefixedModelAgent',
+        model: 'openai/gpt-5.4',
+        modelSettings: createGpt5ModelSettings(),
+      });
+
+      const result = await runner.run(agent, 'hello');
+
+      expect(result.finalOutput).toBe('Hello prefixed GPT-5');
+      expect(inspectableModel.lastRequest?.modelSettings).toEqual(
+        createGpt5ModelSettings(),
+      );
+    });
+
+    it('strips GPT-5-only settings for a provider-prefixed legacy model name', async () => {
+      const inspectableModel = new InspectableModel({
+        output: [fakeModelMessage('Hello prefixed legacy')],
+        usage: new Usage(),
+      });
+      const runner = new Runner({
+        modelProvider: new InspectableModelProvider(inspectableModel),
+      });
+      const agent = new Agent({
+        name: 'PrefixedLegacyModelAgent',
+        model: 'openai/gpt-4.1',
+        modelSettings: createGpt5ModelSettings(),
+      });
+
+      await runner.run(agent, 'hello');
+
+      expect(inspectableModel.lastRequest?.modelSettings).toEqual({
+        temperature: 0.42,
+        providerData: { text: {}, keep: 'value' },
+        reasoning: {},
+        text: {},
+      });
+    });
+
     it.each([
       ['gpt-5', 'low'],
       ['gpt-5.6', 'none'],
+      ['openai/gpt-5.4', 'none'],
       ['gpt-6-astra', 'low'],
     ] as const)(
       'uses model-specific defaults when the RunConfig model is %s',

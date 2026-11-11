@@ -26,11 +26,21 @@ export function gpt5ReasoningSettingsRequired(modelName: string): boolean {
  * Membership does not require a model-specific default reasoning effort.
  */
 export function isGpt5OrNewerReasoningModel(modelName: string): boolean {
-  if (GPT_5_CHAT_MODEL_PATTERNS.some((pattern) => pattern.test(modelName))) {
+  const baseModelName = stripModelProviderPrefix(modelName);
+  if (
+    GPT_5_CHAT_MODEL_PATTERNS.some((pattern) => pattern.test(baseModelName))
+  ) {
     return false;
   }
-  const version = /^gpt-(\d+)(?:\.\d+)?(?:-|$)/.exec(modelName);
+  const version = /^gpt-(\d+)(?:\.\d+)?(?:-|$)/.exec(baseModelName);
   return version !== null && Number(version[1]) >= 5;
+}
+
+/**
+ * Removes a provider or gateway namespace such as `openai/` from a model name.
+ */
+function stripModelProviderPrefix(modelName: string): string {
+  return modelName.slice(modelName.lastIndexOf('/') + 1);
 }
 
 /**
@@ -69,8 +79,9 @@ function getDefaultReasoningEffort(
 ):
   | Exclude<ModelSettingsReasoningEffort, 'minimal' | 'xhigh' | 'max' | null>
   | undefined {
+  const baseModelName = stripModelProviderPrefix(modelName);
   for (const [pattern, effort] of DEFAULT_REASONING_EFFORT_PATTERNS) {
-    if (pattern.test(modelName)) {
+    if (pattern.test(baseModelName)) {
       return effort;
     }
   }
